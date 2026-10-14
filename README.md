@@ -146,7 +146,37 @@ These windows cover very different historical price scales; **do not average the
 
 ---
 
-## 7. Seven-Month Forecast
+## 7. Final Model Selection Experiment (Verified)
+
+The reproducible `src/compare_models.py` compares a previous-month baseline and **seven fixed configurations** of Ridge, Lasso, and ElasticNet. To avoid selecting the best model from test results, it uses only the *first 1,840 supervised rows* for development, with five expanding-window folds (each tests the following 240 months). The final **460-month holdout** is kept separate until model selection is complete.
+
+| Model | Mean development-fold RMSE |
+|---|---:|
+| **Previous-month baseline** | **4.839** |
+| Ridge (alpha=0.1) | 4.873 |
+| Ridge (alpha=1) | 5.085 |
+| Lasso (alpha=0.1) | 5.489 |
+| Ridge (alpha=10) | 6.180 |
+| ElasticNet (alpha=0.1, L1 ratio=0.5) | 9.113 |
+| Lasso (alpha=1) | 11.297 |
+| ElasticNet (alpha=1, L1 ratio=0.5) | 14.796 |
+
+**Selected approach: previous-month baseline.** Its untouched holdout MAE is **24.9834** and RMSE **40.0572**. A separate fixed Ridge(alpha=1) holdout evaluation had MAE **24.6288**, RMSE **40.2934**. Ridge improved MAE slightly but not RMSE.
+
+**Important:** Raw fold RMSEs from historic eras with drastically different price scales are not directly comparable. Their unweighted average is a predeclared, illustrative selection criterion, not a universal ranking or guarantee of future superiority. None of these comparisons demonstrates investment profitability.
+
+To rerun:
+
+```bash
+python src/evaluate.py
+python src/compare_models.py
+```
+
+The second script writes `results/model_comparison.json`, `results/model_comparison_folds.csv`, and `results/model_comparison_summary.csv`. The experiments executed successfully locally with the original dataset; the full historical monthly CSV provenance and currency still require verification.
+
+---
+
+## 8. Seven-Month Forecast
 
 The updated script optionally produces a **recursive forecast of seven future months**, starting after the most recent recorded observation. It:
 
@@ -157,7 +187,7 @@ The updated script optionally produces a **recursive forecast of seven future mo
 
 Because future months beyond the first depend on earlier forecasts, errors can compound. The multi-step forecasts are **illustrative and not independently backtested**; no investment conclusions should be drawn from them.
 
-## 8. Repository Structure
+## 9. Repository Structure
 
 ```text
 Gold-Price-Prediction-/
@@ -167,7 +197,8 @@ Gold-Price-Prediction-/
 ├── data/
 │   └── monthly.csv
 ├── src/
-│   └── evaluate.py
+│   ├── evaluate.py
+│   └── compare_models.py
 └── notebooks/
     ├── original_gold_price_predication.ipynb
     └── monthly_gold_forecasting.ipynb
@@ -175,7 +206,7 @@ Gold-Price-Prediction-/
 
 Running the updated script also creates local `results/` files, including `evaluation.json`, `holdout_predictions.csv` and `future_monthly_forecast.csv`. The results folder may be absent on a fresh clone until the script is run. The generated `evaluation.json` also records expanding-window backtest metrics.
 
-## 9. Installation and Reproduction
+## 10. Installation and Reproduction
 
 On Windows:
 
@@ -186,13 +217,14 @@ python -m venv .venv
 .venv\Scripts\activate
 python -m pip install -r requirements.txt
 python src/evaluate.py
+python src/compare_models.py
 ```
 
 Optional: `python src/evaluate.py --months 12` produces 12-month recursive outputs. The CLI accepts 1–24 months.
 
 Open `notebooks/monthly_gold_forecasting.ipynb` in Jupyter from the repository root for an interactive version.
 
-## 10. Technologies, Limitations and Future Work
+## 11. Technologies, Limitations and Future Work
 
 **Technologies:** Python, Pandas, NumPy, Scikit-learn, Ridge Regression, StandardScaler, Jupyter, regression metrics.
 
@@ -206,7 +238,7 @@ Open `notebooks/monthly_gold_forecasting.ipynb` in Jupyter from the repository r
 
 **Future improvements:** Nested/rolling hyperparameter selection; stronger seasonal/naive baselines; time-series cross-validation for hyperparameter tuning; regime-aware analysis; forecast intervals; improved data provenance documentation.
 
-## 11. Author
+## 12. Author
 
 **Syble Jan** — BS Computer Science student, aspiring AI/ML Engineer.
 
@@ -214,4 +246,4 @@ Open `notebooks/monthly_gold_forecasting.ipynb` in Jupyter from the repository r
 
 ---
 
-**Status:** Corrected educational monthly time-series evaluation and forecasting code added. No real-world financial accuracy guarantee.
+**Status:** Original-data execution, expanding-window backtesting, and development-only model comparison verified. The previous-month baseline is the selected RMSE approach. No real-world financial accuracy guarantee.
