@@ -121,7 +121,32 @@ Run `src/evaluate.py` locally to regenerate exact machine-readable metrics and p
 
 **Do not call R² × 100 an accuracy percentage for regression.** Here, MAE and RMSE are errors in the source CSV's price units, not classification accuracies.
 
-## 6. Seven-Month Forecast
+## 6. Expanding-Window Rolling Backtest
+
+To supplement the single holdout, `src/evaluate.py` now performs an **expanding-training-window evaluation** with a fixed Ridge alpha of 1:
+
+- Initial training history: 600 supervised monthly observations.
+- Test window: 240 successive months (20 years).
+- Step: 240 months; chronological, non-overlapping test blocks.
+- Both methods use **historically observed** lag values, so these scores evaluate one-month-ahead prediction rather than fully recursive multi-month forecasting.
+
+An independent numerical audit of the source CSV yielded **7 test windows**. Ridge achieved lower RMSE than the previous-month baseline in **1 out of 7 windows**. The baseline had lower RMSE in the other six. This cautions against claiming Ridge is reliably superior to a naive forecast.
+
+| Test period | Baseline RMSE | Ridge RMSE |
+|---|---:|---:|
+| 1884–1903 | 0.0052 | 0.0052 |
+| 1904–1923 | 0.0894 | 0.0936 |
+| 1924–1943 | 0.7323 | 0.7607 |
+| 1944–1963 | 0.2830 | 0.2861 |
+| 1964–1983 | 23.0850 | 24.2813 |
+| 1984–2003 | 11.2298 | **10.9558** |
+| 2004–2023 | 45.8467 | 47.3400 |
+
+These windows cover very different historical price scales; **do not average their raw RMSE values to claim global model performance**. The methodology is a simple rolling-origin study, not nested CV or a production forecasting evaluation. Exact full-precision metrics are generated in `results/evaluation.json`.
+
+---
+
+## 7. Seven-Month Forecast
 
 The updated script optionally produces a **recursive forecast of seven future months**, starting after the most recent recorded observation. It:
 
@@ -132,7 +157,7 @@ The updated script optionally produces a **recursive forecast of seven future mo
 
 Because future months beyond the first depend on earlier forecasts, errors can compound. The multi-step forecasts are **illustrative and not independently backtested**; no investment conclusions should be drawn from them.
 
-## 7. Repository Structure
+## 8. Repository Structure
 
 ```text
 Gold-Price-Prediction-/
@@ -148,9 +173,9 @@ Gold-Price-Prediction-/
     └── monthly_gold_forecasting.ipynb
 ```
 
-Running the updated script also creates local `results/` files, including `evaluation.json`, `holdout_predictions.csv` and `future_monthly_forecast.csv`. The results folder may be absent on a fresh clone until the script is run.
+Running the updated script also creates local `results/` files, including `evaluation.json`, `holdout_predictions.csv` and `future_monthly_forecast.csv`. The results folder may be absent on a fresh clone until the script is run. The generated `evaluation.json` also records expanding-window backtest metrics.
 
-## 8. Installation and Reproduction
+## 9. Installation and Reproduction
 
 On Windows:
 
@@ -167,7 +192,7 @@ Optional: `python src/evaluate.py --months 12` produces 12-month recursive outpu
 
 Open `notebooks/monthly_gold_forecasting.ipynb` in Jupyter from the repository root for an interactive version.
 
-## 9. Technologies, Limitations and Future Work
+## 10. Technologies, Limitations and Future Work
 
 **Technologies:** Python, Pandas, NumPy, Scikit-learn, Ridge Regression, StandardScaler, Jupyter, regression metrics.
 
@@ -179,9 +204,9 @@ Open `notebooks/monthly_gold_forecasting.ipynb` in Jupyter from the repository r
 - Very long historical periods cover major regime shifts.
 - No uncertainty intervals, production monitoring, or trading validation.
 
-**Future improvements:** Rolling-origin evaluation; stronger seasonal/naive baselines; time-series cross-validation for hyperparameter tuning; regime-aware analysis; forecast intervals; improved data provenance documentation.
+**Future improvements:** Nested/rolling hyperparameter selection; stronger seasonal/naive baselines; time-series cross-validation for hyperparameter tuning; regime-aware analysis; forecast intervals; improved data provenance documentation.
 
-## 10. Author
+## 11. Author
 
 **Syble Jan** — BS Computer Science student, aspiring AI/ML Engineer.
 
