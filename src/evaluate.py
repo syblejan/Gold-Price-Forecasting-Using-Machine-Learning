@@ -30,6 +30,29 @@ def score(y, pred):
             "rmse":float(np.sqrt(mean_squared_error(y,pred))),
             "r2":float(r2_score(y,pred))}
 
+def rolling_backtest(data, features, initial_train=600, window=240, step=240):
+    """Expanding training windows, non-overlapping forward test blocks.
+
+    Predictions use observed lagged historical values, not recursive simulation.
+    """
+    records = []
+    for end_train in range(initial_train, len(data) - window + 1, step):
+        train = data.iloc[:end_train]
+        test = data.iloc[end_train:end_train + window]
+        model = Pipeline([("scaler", StandardScaler()), ("ridge", Ridge(alpha=1.0))])
+        model.fit(train[features], train["Price"])
+        ridge_pred = model.predict(test[features])
+        baseline_pred = test["lag_1"].to_numpy()
+        records.append({
+            "start": test.index.min().strftime("%Y-%m"),
+            "end": test.index.max().strftime("%Y-%m"),
+            "n": len(test),
+            "ridge": score(test["Price"], ridge_pred),
+            "baseline": score(test["Price"], baseline_pred)
+        })
+    return records
+
+
 def run(data_path, out_dir, horizon=7):
     if not 1 <= horizon <= 24:
         raise ValueError("horizon must be between 1 and 24 months")
@@ -46,6 +69,13 @@ def run(data_path, out_dir, horizon=7):
                "baseline_previous_month":score(te["Price"],baseline),
                "ridge_alpha_1":score(te["Price"],pred),
                "note":"One-step test predictions use observed prior months; recursively produced future forecasts are not backtested."}
+    rolling = rolling_backtest(data, features)
+    metrics["rolling_backtest"] = {
+        "protocol": "expanding training windows, 240-month fixed test blocks, 240-month step; Ridge alpha=1 fixed in advance",
+        "windows": rolling,
+        "ridge_better_rmse_windows": sum(w["ridge"]["rmse"] < w["baseline"]["rmse"] for w in rolling),
+        "total_windows": len(rolling)
+    }
     # Refit for future predictions only after holdout metrics have been calculated.
     model.fit(data[features],data["Price"])
     history=list(df["Price"].to_numpy())
